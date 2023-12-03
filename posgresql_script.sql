@@ -1,11 +1,12 @@
 create table if not exists manganime (
-  id int primary key,
+  id serial primary key,
   title varchar (100) not null,
   category text[] not null,
   description varchar (500) not null,
-  is_manga boolean not null,
   release_year int not null,
   author varchar (50) not null,
+  num_of_chap int not null,
+  is_manga boolean not null,
   image varchar(1000) not null
 );
 
@@ -14,8 +15,6 @@ create table if not exists account (
   user_name varchar (50) not null,
   user_email varchar (100) not null,
   user_password varchar (150) not null,
-  watched_num int not null,
-  favorite_num int not null,
   join_since date not null,
   image varchar(1000)
 );
@@ -29,14 +28,53 @@ create table if not exists register_account (
   constraint unique_user_name unique (user_name)
 );
 
-create table if not exists manganime_account (
-  manganime_id int not null,
+create table if not exists manga_account (
+  manga_id int not null,
   account_id int not null,
+  chap_read int not null,
   favorite boolean not null,
   watched boolean not null,
-  constraint pk_manganime_id_account_id primary key (manganime_id, account_id)
+  constraint pk_manga_id_account_id primary key (manga_id, account_id)
 );
 
+create table if not exists anime_account (
+  anime_id int not null,
+  account_id int not null,
+  episode_watched int not null,
+  favorite boolean not null,
+  watched boolean not null,
+  constraint pk_anime_id_account_id primary key (anime_id, account_id)
+);
+
+create table if not exists reviews_anime (
+  anime_id int not null,
+  reviewer_id int not null,
+  review_content varchar(5000) not null,
+  constraint anime_review_id primary key (anime_id, reviewer_id)
+)
+
+
+-- reaction_code 1: like, 2: haha, 3: sad, 4: angry, 5: dislike, 6: wow
+create table if not exists reviews_anime_reaction(
+  anime_review_id int not null,
+  reaction_code int not null,
+  user_id int not null
+)
+
+create table if not exists reviews_manga (
+  manga_id int not null,
+  reviewer_id int not null,
+  review_content varchar(5000) not null,
+  constraint manga_review_id primary key (manga_id, reviewer_id)
+)
+
+
+-- reaction_code 1: like, 2: haha, 3: sad, 4: angry, 5: dislike, 6: wow
+create table if not exists reviews_manga_reaction(
+  manga_review_id int not null,
+  reaction_code int not null,
+  user_id int not null
+)
 
 -- Insert data into manganime table
 INSERT INTO manganime (id, title, category, description, is_manga, release_year, author, image)

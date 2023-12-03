@@ -5,21 +5,15 @@ const bcrypt = require('bcrypt');
 
 async function registerAccount(req, res, next){
     try {
-        console.log("run 1")
         const deleteQueryStr = "delete from register_account where user_email = $1"
         await db.query(deleteQueryStr, [req.body.email])
-        console.log("run 2")
         const queryStr = "select user_name from account where user_email = $1"
         const rows = await db.query(queryStr, [req.body.email]);
-        console.log("run 3")
         if(rows.length != 0) return res.status(200).json({"mess": "Email already exist",  "code" : 200});
-        console.log("run 4 " + req.body.date)
         const queryStr2 = "insert into register_account (user_name, user_email, user_password, join_since) values ($1, $2, $3, $4)"
         await db.query(queryStr2, [req.body.name, req.body.email, (req.body.password).toString(), req.body.date]);
-        console.log("run 5")
         mailer.sendVerificationEmail(req.body.email, "http://localhost:3000/register/confirmEmail?email=" + req.body.email);
         res.status(200).json({"mess": "Check your email",  "code" : 200});
-        console.log("run 6")
     } catch (error) {
         console.log(error)
         res.status(401).json({"mess": error + "\nPlease contact a@gmail.com to report",  "code" : 401});

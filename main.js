@@ -11,11 +11,17 @@ app.use(cookieParser());
 
 app.use(bodyParser.urlencoded({ extended: false }));
 
-const manganimeRoutes = require('./routes/manganime');
+const manganimeRoutes = require('./routes/manga');
+const userRoutes = require('./routes/user');
 const registerRoutes = require('./routes/register');
 const authenticateRoutes = require('./routes/authenticate');
 
 app.use('/manganime', authenticateToken, manganimeRoutes);
+
+app.use('/user', 
+// authenticateToken,
+ userRoutes);
+
 app.use('/register', registerRoutes);
 app.use('/authenticate', authenticateRoutes);
 app.listen(3000);
