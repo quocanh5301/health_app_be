@@ -48,8 +48,18 @@ function currentDateDMY_HM() {
     return todayDate;
 }
 
+function currentDateToddMMyyyy() {
+    const plannedDate = new Date();
+    const day = String(plannedDate.getDate()).padStart(2, '0'); // Get the day and pad with zero if needed
+    const month = String(plannedDate.getMonth() + 1).padStart(2, '0'); // Get the month (0-11) and pad with zero
+    const year = plannedDate.getFullYear(); // Get the full year
+
+    return `${day}/${month}/${year}`; // Format to "dd/MM/yyyy"
+}
+
 module.exports = {
     // currentDateDMY : currentDateDMY, 
-    currentDateDMY_HM : currentDateDMY_HM,
+    currentDateDMY_HM: currentDateDMY_HM,
+    currentDateToddMMyyyy: currentDateToddMMyyyy
     //!qa
 }

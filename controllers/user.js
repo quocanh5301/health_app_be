@@ -63,60 +63,6 @@ async function getUserProfile(req, res) {
     }
 }
 
-async function getFollowingUser(req, res) { //get users that followed by user with id "userId"
-    try {
-        const userId = req.body.userId;
-        const userQuery = "select id, user_name, user_image from account  where id  in (SELECT id FROM subscription_account join account on subscription_account.account_id = account.id WHERE follower_account_id = $1)";
-        const userResult = await db.query(userQuery, [userId]);
-
-        return res.status(200).json({ mess: "success", data: userResult, code: 200 });
-    } catch (error) {
-        return res.status(500).json({ mess: error.message, code: 500 });
-    }
-}
-
-async function getFollowerUser(req, res) { //get users that follow this user with id "userId"
-    try {
-        const userId = req.body.userId;
-        const userQuery = "select id, user_name, user_image from account  where id  in (SELECT id FROM subscription_account join account on subscription_account.follower_account_id  = account.id WHERE account_id = $1)";
-        const userResult = await db.query(userQuery, [userId]);
-
-        return res.status(200).json({ mess: "success", data: userResult, code: 200 });
-    } catch (error) {
-        return res.status(500).json({ mess: error.message, code: 500 });
-    }
-}
-
-async function getReviewsOnUserRecipe(req, res) {
-    try {
-        const userId = req.body.userId;
-        const page = req.body.page;
-        const pageSize = req.body.pageSize;
-
-        const ratingQuery = "select * from recipe_account_rating where recipe_id  in (select id from recipe where account_id = $1) order by create_at, update_at desc limit $2 offset $3";
-        const ratingResult = await db.query(ratingQuery, [userId, pageSize, pageSize * page]);
-
-        const ratingWithUserAndRecipeInfo = await Promise.all(ratingResult.map(async (rating) => {
-            const queryUserInfo = "SELECT user_image, user_name from account where id = $1"
-            const userInfo = await db.query(queryUserInfo, [rating.account_id]);
-
-            const queryRecipeInfo = "SELECT recipe_name, recipe_image from recipe where id = $1"
-            const recipeInfo = await db.query(queryRecipeInfo, [rating.recipe_id]);
- 
-            // rating.update_at = new Date(rating.update_at).toISOString();
-            // rating.create_at = new Date(rating.create_at).toISOString();
-            // console.log(rating);//!qa
-            rating.rating = parseFloat(rating.rating);
-            return { ...recipeInfo[0], ...userInfo[0], ...rating };
-        }));
-        // console.log(ratingWithUserAndRecipeInfo);
-        return res.status(200).json({ mess: "success", data: ratingWithUserAndRecipeInfo, code: 200 });
-    } catch (error) {
-        console.log(error);
-        return res.status(500).json({ mess: error.message, code: 500 });
-    }
-}
-
 async function updateProfileImage(req, res, next) {
     try {
         const file = req.file;
@@ -210,67 +156,6 @@ async function setFirebaseToken(req, res) {
     }
 }
 
-async function followUser(req, res) {
-    try {
-        const userId = req.body.userId; //to user
-        const followerUserId = req.body.followerUserId; //from user
-        const followerUserName = req.body.followerUserName;
-        const followerUserImage = req.body.followerUserImage;
-        const isFollow = req.body.isFollow;
-        if (isFollow == 1) {
-            //follow user when isFollow = 1
-            const followUserQuery = "INSERT INTO subscription_account (account_id, follower_account_id) values ($1,$2);"
-            await db.query(followUserQuery, [userId, followerUserId]);
-
-            //get firebase token for notification messaging
-            const getFirebaseTokenQuery = "select firebase_token from firebase_messaging_token where account_id = $1";
-            const getFirebaseTokenResult = await db.query(getFirebaseTokenQuery, [userId]);
-            const firebaseTokens = getFirebaseTokenResult.map((item) => {
-                return item.firebase_token;
-            });
-            
-            //insert notification
-            const followNotiQuery = "INSERT INTO notification (title, notification_content, notification_image, on_click_type, relevant_data, create_at) values ($1,$2,$3,$4,$5,$6) on conflict (title, notification_content) do nothing;"
-            await db.query(followNotiQuery, ["New Follower !!!", "User " + followerUserName + " started following you :D", followerUserImage, 'user', followerUserId, dateTime.currentDateDMY_HM()]);
-            //insert notification to account relation
-            const notiIdQuery = "select id from notification where notification_content = $1 and title = $2"
-            const notiId = await db.query(notiIdQuery, ["User " + followerUserName + " started following you :D", "New Follower !!!"]);
-            const notiToAccountQuery = "INSERT INTO notification_to_account (notification_id, account_id, is_seen) values ($1,$2,$3);"
-            await db.query(notiToAccountQuery, [notiId[0].id, userId, 0]);
-
-            //sent notification to followed user
-            if (firebaseTokens.length > 0) {
-                await firebase.sendNotificationTo(
-                    firebaseTokens,
-                    "New Follower !!!",
-                    "User " + followerUserName + " started following you :D",
-                );
-                await firebase.sendInAppNotification(
-                    firebaseTokens,
-                    JSON.stringify({
-                        id: notiId[0].id,
-                        title: "New Follower !!!",
-                        notification_content: "User " + followerUserName + " started following you :D",
-                        notification_image: followerUserImage,
-                        on_click_type: 'user',
-                        relevant_data: +followerUserId,
-                        create_at: new Date()
-                    })
-                );
-            }
-
-            return res.status(200).json({ mess: "success", code: 200 });
-        } else {
-            //unfollow user when isFollow = 0
-            const unfollowUserQuery = "DELETE FROM subscription_account WHERE account_id = $1 AND follower_account_id = $2;"
-            await db.query(unfollowUserQuery, [userId, followerUserId]);
-            return res.status(200).json({ mess: "success", code: 200 });
-        }
-    } catch (error) {
-        return res.status(500).json({ mess: error.message, code: 500 });
-    }
-}
-
 async function searchUser(req, res) {
     try {
         const searchKey = req.body.searchKey;
@@ -295,54 +180,13 @@ async function searchUser(req, res) {
     }
 }
 
-async function checkIsFollowOrNot(req, res) { //get users that follow this user with id "userId"
-    try {
-        const userId = req.body.userId; //this user
-        const toUserId = req.body.toUserId; //follow this user or not?
-        const userQuery = "select * from subscription_account where account_id = $1 and follower_account_id = $2";
-        const userResult = await db.query(userQuery, [toUserId, userId]);
-        if (userResult.length != 0) {
-            return res.status(200).json({ mess: "success", code: 200, data: true });
-        } else {
-            return res.status(200).json({ mess: "success", code: 200, data: false });
-        }
-    } catch (error) {
-        return res.status(500).json({ mess: error.message, code: 500 });
-    }
-}
-
-async function getRecipeNumFollowerFollowing(req, res) {//!qa
-    try {
-        const userId = req.body.userId;
-        const followerQuery = "select count(*) from subscription_account where account_id = $1";
-        const followerResult = await db.query(followerQuery, [userId]);
-
-        const followingQuery = "select count(*) from subscription_account where follower_account_id = $1";
-        const followingResult = await db.query(followingQuery, [userId]);
-
-        const recipeNumQuery = "select count(*) from recipe where account_id = $1";
-        const recipeNumResult = await db.query(recipeNumQuery, [userId]); //!qa get recipe num
-
-        return res.status(200).json({ mess: "success", code: 200, data: { numFollower: followerResult[0].count, numFollowing: followingResult[0].count, numRecipe: recipeNumResult[0].count, } });
-    } catch (error) {
-        return res.status(500).json({ mess: error.message, code: 500 });
-    }
-
-}
-
 module.exports = {
     setProfileImage: setProfileImage,
     getProfileImage: getProfileImage,
     getUserProfile: getUserProfile,
     updateProfileImage: updateProfileImage,
     updateUserData: updateUserData,
-    setFirebaseToken: setFirebaseToken,
+    // setFirebaseToken: setFirebaseToken,
     changeUserPassword: changeUserPassword,
-    followUser: followUser, //!qa unfollowUser
     searchUser: searchUser,
-    getFollowingUser: getFollowingUser,
-    getFollowerUser: getFollowerUser,
-    getReviewsOnUserRecipe: getReviewsOnUserRecipe,
-    checkIsFollowOrNot: checkIsFollowOrNot,//!qa gộp với "getNumRecipeFollowerFollowing"?
-    getRecipeNumFollowerFollowing: getRecipeNumFollowerFollowing, //!qa
 }
