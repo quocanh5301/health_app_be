@@ -33,7 +33,6 @@ app.use('/authenticate', authenticateRoutes);
 app.listen(3000);
 
 function authenticateToken(req, res, next) {
-  console.log('authenticateToken');
   const authHeader = req.headers['authorization']; // Expecting "Bearer <TOKEN>"
   const accessToken = authHeader && authHeader.split(' ')[1]; // Extract token part after "Bearer"
 
@@ -49,8 +48,8 @@ function authenticateToken(req, res, next) {
 
     try {
       // Validate token against database
-      const userQuery = "SELECT session_token FROM account_login_status WHERE user_email = $1";
-      const userResult = await db.query(userQuery, [user.user_email]);
+      const userQuery = "SELECT session_token FROM account_login_status WHERE user_id = $1";
+      const userResult = await db.query(userQuery, [user.id]);
 
       if (userResult.length === 0 || userResult[0].session_token !== accessToken) {
         return res.status(401).json({ mess: "Token is not valid or expired", code: 401 });
