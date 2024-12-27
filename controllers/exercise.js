@@ -192,34 +192,47 @@ async function markAsFavorite(req, res) {
 // Get all favorite exercises for a user
 async function getUserFavoriteExercises(req, res) {
     try {
-        const { userId } = req.body;
+        const { userId, page, pageSize } = req.body;
+        // console.log(userId, page, pageSize);
+
+        const currentPage = parseInt(page, 10) || 1;
+        const limit = parseInt(pageSize, 10) || 10;
+        const offset = (currentPage - 1) * limit;
 
         if (!userId) {
-            return res.status(400).json({ message: 'Missing required fields', code: 400 });
+            return res.status(400).json({ mess: 'Missing required fields', code: 400 });
         }
 
         const query = `
         SELECT 
           e.id AS exercise_id,
           e.exercise_name,
-          e.image,
           e.calor,
           e.duration,
-          e.difficulty
+          e.difficulty,
+          e.image,
+          ARRAY(
+            SELECT mg.muscle_group_name
+            FROM exercise_muscle_group emg
+            INNER JOIN muscle_group mg ON emg.muscle_group_id = mg.id
+            WHERE emg.exercise_id = e.id
+          ) AS muscle_groups
         FROM user_favorite_exercise uf
         INNER JOIN exercise e ON uf.exercise_id = e.id
-        WHERE uf.user_id = $1;
+        WHERE uf.user_id = $1
+        LIMIT $2 OFFSET $3;
       `;
 
-        const rows  = await db.query(query, [userId]);
+        const rows = await db.query(query, [userId, limit, offset]);
+        // console.log(rows);
 
         if (rows.length === 0) {
-            return res.status(200).json({ message: 'No favorite exercises found', code: 200 });
+            return res.status(200).json({ mess: 'Success', code: 200, data: rows });
         }
 
-        return res.status(200).json({ message: 'Success', code: 200, data: rows });
+        return res.status(200).json({ mess: 'Success', code: 200, data: rows });
     } catch (error) {
-        return res.status(500).json({ message: 'Error retrieving favorite exercises', code: 500, error: error.message });
+        return res.status(500).json({ mess: 'Error retrieving favorite exercises', code: 500, error: error.message });
     }
 }
 
